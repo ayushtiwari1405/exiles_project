@@ -4,7 +4,7 @@ AetherArcade is a full-stack real-time messaging platform featuring interactive,
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
 *   **Secure Session Authentication**: Custom-built, lightweight session authentication bypassing heavy standard Django schema pollution.
 *   **User Discovery**: Dynamic username lookup allowing users to discover other registered members and start new chats.
@@ -18,7 +18,7 @@ AetherArcade is a full-stack real-time messaging platform featuring interactive,
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 ### Backend
 *   **Framework**: Python (Django 6.0+)
@@ -33,7 +33,7 @@ AetherArcade is a full-stack real-time messaging platform featuring interactive,
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```text
 ├── backend_project/           # Django configuration folder
@@ -75,7 +75,25 @@ AetherArcade is a full-stack real-time messaging platform featuring interactive,
 
 ---
 
-## ⚙️ Setup and Execution
+## Preseeded User Accounts (Characters)
+
+For ease of testing and immediate login, the database is preseeded with the following testing characters:
+
+*   **Alice**:
+    *   Username: `alice`
+    *   Password: `password123`
+*   **Bob**:
+    *   Username: `bob`
+    *   Password: `password123`
+*   **Jack**:
+    *   Username: `jack`
+    *   Password: `password123`
+
+You can use these accounts to log in from separate browser sessions/tabs to test the 1:1 chat and real-time game launching functionality.
+
+---
+
+## Setup and Execution
 
 ### Prerequisites
 *   Python 3.12+
@@ -87,7 +105,7 @@ Navigate to the root directory, activate the virtual environment, and launch the
 # Activate virtual environment
 source venv/bin/activate
 
-# Apply migrations and seed games
+# Apply migrations and seed games/users
 python manage.py migrate
 
 # Run unit tests to verify database integrity
@@ -120,7 +138,7 @@ python api_test_client.py
 
 ---
 
-## 🌐 REST API Specifications
+## REST API Specifications
 
 The backend exposes the following REST paths under the `/api/` prefix:
 
@@ -137,7 +155,7 @@ The backend exposes the following REST paths under the `/api/` prefix:
 
 ---
 
-## 🔒 Data Integrity & Validation
+## Data Integrity & Validation
 
 To ensure absolute schema safety, validations are strictly enforced at the model level via `clean()` and called automatically inside overridden `save()` methods:
 1.  **User uniqueness**: Usernames must be unique and non-empty. Passwords are securely hashed.
