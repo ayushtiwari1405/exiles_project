@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connect Four - AetherArcade</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #020617;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+  <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
+    <div class="text-center mb-6">
+      <h1 class="text-2xl font-extrabold text-white tracking-tight">Connect Four</h1>
+      <p class="text-xs text-slate-400 mt-1">Get 4 tokens in a row to win!</p>
+    </div>
+
+    <!-- Mode Selector -->
+    <div class="flex bg-slate-950 p-1 rounded-xl mb-6 border border-slate-800">
+      <button id="btn-pvp" class="flex-1 text-center py-2 rounded-lg text-xs font-bold bg-violet-600 text-white transition">2 Players</button>
+      <button id="btn-pve" class="flex-1 text-center py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition">vs AI</button>
+    </div>
+
+    <!-- Status Text -->
+    <div id="status" class="text-center text-sm font-semibold text-violet-400 mb-4 h-6">
+      Player Red's Turn
+    </div>
+
+    <!-- Grid Board -->
+    <div class="bg-blue-900/60 p-4 rounded-2xl border border-blue-800 mb-6 shadow-lg">
+      <div id="board" class="grid grid-cols-7 gap-2 bg-blue-950 p-2.5 rounded-xl border border-blue-900">
+        <!-- 7 columns x 6 rows = 42 cells. Populated via JS dynamically -->
+      </div>
+    </div>
+
+    <!-- Reset Button -->
+    <button id="reset" class="w-full bg-slate-950 hover:bg-slate-800 border border-slate-850 text-white font-bold py-2.5 rounded-xl text-xs transition">
+      Reset Game
+    </button>
+  </div>
+
+  <script>
+    const ROWS = 6;
+    const COLS = 7;
+    let board = [];
+    let currentPlayer = 1; // 1 = Red (Player), 2 = Yellow (Player 2 or AI)
+    let isGameActive = true;
+    let isAiMode = false;
+
+    const boardEl = document.getElementById('board');
+    const statusText = document.getElementById('status');
+    const resetBtn = document.getElementById('reset');
+    const btnPvp = document.getElementById('btn-pvp');
+    const btnPve = document.getElementById('btn-pve');
+
+    function initBoard() {
+      boardEl.innerHTML = '';
+      board = Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
+      
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = document.createElement('button');
+          cell.className = "w-10 h-10 md:w-11 md:h-11 rounded-full bg-slate-900 border border-slate-950 flex items-center justify-center transition focus:outline-none cursor-pointer";
+          cell.setAttribute('data-row', r);
+          cell.setAttribute('data-col', c);
+          cell.addEventListener('click', () => handleColSelect(c));
+          boardEl.appendChild(cell);
+        }
+      }
+    }
+
+    function handleColSelect(col) {
+      if (!isGameActive) return;
+
+      // Find lowest empty row in selected column
+      let row = -1;
+      for (let r = ROWS - 1; r >= 0; r--) {
+        if (board[r][col] === 0) {
+          row = r;
+          break;
+        }
+      }
+
+      if (row === -1) return; // Column is full
+
+      makeMove(row, col, currentPlayer);
+
+      if (checkWin(row, col)) {
+        endGame(currentPlayer);
+        return;
+      }
+
+      if (checkDraw()) {
+        endDraw();
+        return;
+      }
+
+      // Switch turn
+      currentPlayer = currentPlayer === 1 ? 2 : 1;
+      updateTurnStatus();
+
+      if (isAiMode && currentPlayer === 2 && isGameActive) {
+        statusText.textContent = "AI is thinking...";
+        setTimeout(makeAiMove, 600);
+      }
+    }
+
+    function makeMove(row, col, player) {
+      board[row][col] = player;
+      const index = row * COLS + col;
+      const cell = boardEl.children[index];
+      
+      cell.classList.remove('bg-slate-900');
+      if (player === 1) {
+        cell.classList.add('bg-rose-500', 'shadow-inner', 'shadow-rose-700/60');
+      } else {
+        cell.classList.add('bg-amber-400', 'shadow-inner', 'shadow-amber-600/60');
+      }
+    }
+
+    function makeAiMove() {
+      if (!isGameActive) return;
+
+      // Simple AI logic
+      let bestCol = -1;
+
+      // 1. Try to find a winning move for AI (2)
+      bestCol = findWinningMove(2);
+
+      // 2. Try to find a blocking move against player (1)
+      if (bestCol === -1) {
+        bestCol = findWinningMove(1);
+      }
+
+      // 3. Prefer central columns
+      if (bestCol === -1) {
+        const order = [3, 2, 4, 1, 5, 0, 6];
+        for (let col of order) {
+          if (canPlay(col)) {
+            bestCol = col;
+            break;
+          }
+        }
+      }
+
+      if (bestCol !== -1) {
+        handleColSelect(bestCol);
+      }
+    }
+
+    function canPlay(col) {
+      return board[0][col] === 0;
+    }
+
+    function findWinningMove(player) {
+      for (let c = 0; c < COLS; c++) {
+        if (!canPlay(c)) continue;
+        
+        // Find row it would land on
+        let r = -1;
+        for (let row = ROWS - 1; row >= 0; row--) {
+          if (board[row][c] === 0) {
+            r = row;
+            break;
+          }
+        }
+
+        // Mock play
+        board[r][c] = player;
+        const won = checkWin(r, c);
+        // Undo
+        board[r][c] = 0;
+
+        if (won) return c;
+      }
+      return -1;
+    }
+
+    function checkWin(r, c) {
+      const player = board[r][c];
+      
+      // Horizontal
+      let count = 0;
+      let winningCells = [];
+      for (let col = 0; col < COLS; col++) {
+        if (board[r][col] === player) {
+          count++;
+          winningCells.push([r, col]);
+          if (count >= 4) { highlightWin(winningCells.slice(-4)); return true; }
+        } else {
+          count = 0;
+          winningCells = [];
+        }
+      }
+
+      // Vertical
+      count = 0;
+      winningCells = [];
+      for (let row = 0; row < ROWS; row++) {
+        if (board[row][c] === player) {
+          count++;
+          winningCells.push([row, c]);
+          if (count >= 4) { highlightWin(winningCells.slice(-4)); return true; }
+        } else {
+          count = 0;
+          winningCells = [];
+        }
+      }
+
+      // Diagonal Up-Right
+      count = 0;
+      winningCells = [];
+      for (let i = -3; i <= 3; i++) {
+        const row = r - i;
+        const col = c + i;
+        if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
+          if (board[row][col] === player) {
+            count++;
+            winningCells.push([row, col]);
+            if (count >= 4) { highlightWin(winningCells.slice(-4)); return true; }
+          } else {
+            count = 0;
+            winningCells = [];
+          }
+        }
+      }
+
+      // Diagonal Down-Right
+      count = 0;
+      winningCells = [];
+      for (let i = -3; i <= 3; i++) {
+        const row = r + i;
+        const col = c + i;
+        if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
+          if (board[row][col] === player) {
+            count++;
+            winningCells.push([row, col]);
+            if (count >= 4) { highlightWin(winningCells.slice(-4)); return true; }
+          } else {
+            count = 0;
+            winningCells = [];
+          }
+        }
+      }
+
+      return false;
+    }
+
+    function highlightWin(cellsList) {
+      cellsList.forEach(([r, c]) => {
+        const index = r * COLS + c;
+        boardEl.children[index].classList.add('ring-4', 'ring-emerald-400', 'ring-offset-2', 'ring-offset-slate-900');
+      });
+    }
+
+    function checkDraw() {
+      for (let c = 0; c < COLS; c++) {
+        if (board[0][c] === 0) return false;
+      }
+      return true;
+    }
+
+    function updateTurnStatus() {
+      if (currentPlayer === 1) {
+        statusText.textContent = "Player Red's Turn";
+        statusText.className = "text-center text-sm font-semibold text-rose-400 mb-4 h-6";
+      } else {
+        statusText.textContent = isAiMode ? "AI's Turn" : "Player Yellow's Turn";
+        statusText.className = "text-center text-sm font-semibold text-amber-400 mb-4 h-6";
+      }
+    }
+
+    function endGame(winner) {
+      isGameActive = false;
+      if (winner === 1) {
+        statusText.textContent = "Player Red Wins!";
+        statusText.className = "text-center text-sm font-bold text-rose-400 mb-4 h-6 animate-bounce";
+      } else {
+        statusText.textContent = isAiMode ? "AI Wins!" : "Player Yellow Wins!";
+        statusText.className = "text-center text-sm font-bold text-amber-400 mb-4 h-6 animate-bounce";
+      }
+    }
+
+    defEndDraw = () => {
+      isGameActive = false;
+      statusText.textContent = "It's a Draw!";
+      statusText.className = "text-center text-sm font-semibold text-slate-400 mb-4 h-6";
+    }
+
+    function resetGame() {
+      currentPlayer = 1;
+      isGameActive = true;
+      updateTurnStatus();
+      initBoard();
+    }
+
+    // Mode Selector Events
+    btnPvp.addEventListener('click', () => {
+      isAiMode = false;
+      btnPvp.className = "flex-1 text-center py-2 rounded-lg text-xs font-bold bg-violet-600 text-white transition";
+      btnPve.className = "flex-1 text-center py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition";
+      resetGame();
+    });
+
+    btnPve.addEventListener('click', () => {
+      isAiMode = true;
+      btnPve.className = "flex-1 text-center py-2 rounded-lg text-xs font-bold bg-violet-600 text-white transition";
+      btnPvp.className = "flex-1 text-center py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition";
+      resetGame();
+    });
+
+    resetBtn.addEventListener('click', resetGame);
+
+    // Run initial board setup
+    resetGame();
+  </script>
+</body>
+</html>

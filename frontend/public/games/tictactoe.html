@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tic-Tac-Toe - AetherArcade</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #020617;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+  <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
+    <div class="text-center mb-6">
+      <h1 class="text-2xl font-extrabold text-white tracking-tight">Tic-Tac-Toe</h1>
+      <p class="text-xs text-slate-400 mt-1">Align three marks to win!</p>
+    </div>
+
+    <!-- Mode Selector -->
+    <div class="flex bg-slate-950 p-1 rounded-xl mb-6 border border-slate-800">
+      <button id="btn-pvp" class="flex-1 text-center py-2 rounded-lg text-xs font-bold bg-violet-600 text-white transition">2 Players</button>
+      <button id="btn-pve" class="flex-1 text-center py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition">vs AI</button>
+    </div>
+
+    <!-- Status Text -->
+    <div id="status" class="text-center text-sm font-semibold text-violet-400 mb-4 h-6">
+      Player X's turn
+    </div>
+
+    <!-- Grid Board -->
+    <div class="grid grid-cols-3 gap-3 bg-slate-950 p-3 rounded-2xl border border-slate-800 mb-6">
+      <button class="cell h-20 bg-slate-900 hover:bg-slate-850 rounded-xl text-3xl font-black text-white flex items-center justify-center transition focus:outline-none" data-index="0"></button>
+      <button class="cell h-20 bg-slate-900 hover:bg-slate-850 rounded-xl text-3xl font-black text-white flex items-center justify-center transition focus:outline-none" data-index="1"></button>
+      <button class="cell h-20 bg-slate-900 hover:bg-slate-850 rounded-xl text-3xl font-black text-white flex items-center justify-center transition focus:outline-none" data-index="2"></button>
+      <button class="cell h-20 bg-slate-900 hover:bg-slate-850 rounded-xl text-3xl font-black text-white flex items-center justify-center transition focus:outline-none" data-index="3"></button>
+      <button class="cell h-20 bg-slate-900 hover:bg-slate-850 rounded-xl text-3xl font-black text-white flex items-center justify-center transition focus:outline-none" data-index="4"></button>
+      <button class="cell h-20 bg-slate-900 hover:bg-slate-850 rounded-xl text-3xl font-black text-white flex items-center justify-center transition focus:outline-none" data-index="5"></button>
+      <button class="cell h-20 bg-slate-900 hover:bg-slate-850 rounded-xl text-3xl font-black text-white flex items-center justify-center transition focus:outline-none" data-index="6"></button>
+      <button class="cell h-20 bg-slate-900 hover:bg-slate-850 rounded-xl text-3xl font-black text-white flex items-center justify-center transition focus:outline-none" data-index="7"></button>
+      <button class="cell h-20 bg-slate-900 hover:bg-slate-850 rounded-xl text-3xl font-black text-white flex items-center justify-center transition focus:outline-none" data-index="8"></button>
+    </div>
+
+    <!-- Reset Button -->
+    <button id="reset" class="w-full bg-slate-950 hover:bg-slate-800 border border-slate-850 text-white font-bold py-2.5 rounded-xl text-xs transition">
+      Reset Game
+    </button>
+  </div>
+
+  <script>
+    const cells = document.querySelectorAll('.cell');
+    const statusText = document.getElementById('status');
+    const resetBtn = document.getElementById('reset');
+    const btnPvp = document.getElementById('btn-pvp');
+    const btnPve = document.getElementById('btn-pve');
+
+    let board = ['', '', '', '', '', '', '', '', ''];
+    let currentPlayer = 'X';
+    let isGameActive = true;
+    let isAiMode = false;
+
+    const winningConditions = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6]
+    ];
+
+    function handleCellClick(e) {
+      const clickedCell = e.target;
+      const clickedIndex = parseInt(clickedCell.getAttribute('data-index'));
+
+      if (board[clickedIndex] !== '' || !isGameActive) return;
+
+      makeMove(clickedIndex, currentPlayer);
+      
+      if (checkResult()) return;
+
+      if (isAiMode && isGameActive) {
+        currentPlayer = 'O';
+        statusText.textContent = "AI is thinking...";
+        setTimeout(makeAiMove, 500);
+      } else {
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+        statusText.textContent = `Player ${currentPlayer}'s turn`;
+      }
+    }
+
+    function makeMove(index, player) {
+      board[index] = player;
+      const cell = cells[index];
+      cell.textContent = player;
+      
+      if (player === 'X') {
+        cell.classList.add('text-violet-400');
+      } else {
+        cell.classList.add('text-indigo-400');
+      }
+    }
+
+    function makeAiMove() {
+      if (!isGameActive) return;
+      
+      // 1. Try to win or block
+      let move = findWinningOrBlockingMove('O'); // Win
+      if (move === null) move = findWinningOrBlockingMove('X'); // Block
+      
+      // 2. Take center if available
+      if (move === null && board[4] === '') move = 4;
+      
+      // 3. Take random empty cell
+      if (move === null) {
+        const emptyIndices = board.map((val, idx) => val === '' ? idx : null).filter(val => val !== null);
+        if (emptyIndices.length > 0) {
+          move = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+        }
+      }
+
+      if (move !== null) {
+        makeMove(move, 'O');
+        if (!checkResult()) {
+          currentPlayer = 'X';
+          statusText.textContent = `Player X's turn`;
+        }
+      }
+    }
+
+    function findWinningOrBlockingMove(player) {
+      for (let i = 0; i < winningConditions.length; i++) {
+        const [a, b, c] = winningConditions[i];
+        if (board[a] === player && board[b] === player && board[c] === '') return c;
+        if (board[a] === player && board[c] === player && board[b] === '') return b;
+        if (board[b] === player && board[c] === player && board[a] === '') return a;
+      }
+      return null;
+    }
+
+    function checkResult() {
+      let roundWon = false;
+      for (let i = 0; i < winningConditions.length; i++) {
+        const winCondition = winningConditions[i];
+        const a = board[winCondition[0]];
+        const b = board[winCondition[1]];
+        const c = board[winCondition[2]];
+        
+        if (a === '' || b === '' || c === '') continue;
+        if (a === b && b === c) {
+          roundWon = true;
+          highlightWinningCells(winCondition);
+          break;
+        }
+      }
+
+      if (roundWon) {
+        statusText.textContent = `Player ${currentPlayer} wins!`;
+        statusText.classList.remove('text-violet-400');
+        statusText.classList.add('text-emerald-400');
+        isGameActive = false;
+        return true;
+      }
+
+      const roundDraw = !board.includes('');
+      if (roundDraw) {
+        statusText.textContent = "It's a draw!";
+        statusText.classList.remove('text-violet-400');
+        statusText.classList.add('text-amber-400');
+        isGameActive = false;
+        return true;
+      }
+      return false;
+    }
+
+    function highlightWinningCells(indices) {
+      indices.forEach(idx => {
+        cells[idx].classList.add('bg-emerald-950/40', 'border-emerald-500/30');
+      });
+    }
+
+    function resetGame() {
+      board = ['', '', '', '', '', '', '', '', ''];
+      currentPlayer = 'X';
+      isGameActive = true;
+      statusText.textContent = "Player X's turn";
+      statusText.className = "text-center text-sm font-semibold text-violet-400 mb-4 h-6";
+      cells.forEach(cell => {
+        cell.textContent = '';
+        cell.className = "cell h-20 bg-slate-900 hover:bg-slate-850 rounded-xl text-3xl font-black text-white flex items-center justify-center transition focus:outline-none";
+      });
+    }
+
+    // Event Listeners
+    cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+    resetBtn.addEventListener('click', resetGame);
+
+    btnPvp.addEventListener('click', () => {
+      isAiMode = false;
+      btnPvp.className = "flex-1 text-center py-2 rounded-lg text-xs font-bold bg-violet-600 text-white transition";
+      btnPve.className = "flex-1 text-center py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition";
+      resetGame();
+    });
+
+    btnPve.addEventListener('click', () => {
+      isAiMode = true;
+      btnPve.className = "flex-1 text-center py-2 rounded-lg text-xs font-bold bg-violet-600 text-white transition";
+      btnPvp.className = "flex-1 text-center py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition";
+      resetGame();
+    });
+  </script>
+</body>
+</html>

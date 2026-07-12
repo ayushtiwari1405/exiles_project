@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chess - AetherArcade</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <style>
+    body {
+      background-color: #020617;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .board-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+    }
+    .square-light {
+      background-color: #e2e8f0;
+      color: #1e293b;
+    }
+    .square-dark {
+      background-color: #475569;
+      color: #f8fafc;
+    }
+    .square-selected {
+      box-shadow: inset 0 0 0 4px #a855f7 !important;
+    }
+    .square-highlight {
+      background-color: #c084fc60 !important;
+    }
+    .piece {
+      font-size: 2.25rem;
+      line-height: 1;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.15s ease;
+    }
+    .piece:hover {
+      transform: scale(1.1);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+  <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
+    <div class="text-center mb-4">
+      <h1 class="text-2xl font-extrabold text-white tracking-tight">Chess</h1>
+      <p class="text-xs text-slate-400 mt-1">Play the classic game of strategy.</p>
+    </div>
+
+    <!-- Status Text -->
+    <div id="status" class="text-center text-sm font-semibold text-violet-400 mb-4 h-6">
+      White's Turn
+    </div>
+
+    <!-- Chess Board Container -->
+    <div class="bg-slate-950 p-2 rounded-2xl border border-slate-800 mb-4 shadow-lg flex justify-center">
+      <div id="board" class="board-grid w-80 h-80 border-2 border-slate-850 rounded-lg overflow-hidden">
+        <!-- JS builds 64 squares -->
+      </div>
+    </div>
+
+    <!-- Reset Button -->
+    <button id="reset" class="w-full bg-slate-950 hover:bg-slate-800 border border-slate-850 text-white font-bold py-2.5 rounded-xl text-xs transition">
+      Reset Game
+    </button>
+  </div>
+
+  <script>
+    const chess = new Chess();
+    const boardEl = document.getElementById('board');
+    const statusText = document.getElementById('status');
+    const resetBtn = document.getElementById('reset');
+
+    let selectedSquare = null;
+    let possibleMoves = [];
+
+    // Map Chess piece representations to Unicode chess symbols
+    const UNICODE_PIECES = {
+      'p': { 'w': '♙', 'b': '♟' },
+      'r': { 'w': '♖', 'b': '♜' },
+      'n': { 'w': '♘', 'b': '♞' },
+      'b': { 'w': '♗', 'b': '♝' },
+      'q': { 'w': '♕', 'b': '♛' },
+      'k': { 'w': '♔', 'b': '♚' }
+    };
+
+    const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const RANKS = ['8', '7', '6', '5', '4', '3', '2', '1'];
+
+    function renderBoard() {
+      boardEl.innerHTML = '';
+      
+      for (let r = 0; r < 8; r++) {
+        for (let f = 0; f < 8; f++) {
+          const squareName = FILES[f] + RANKS[r];
+          const squareColorClass = (r + f) % 2 === 0 ? 'square-light' : 'square-dark';
+          
+          const square = document.createElement('div');
+          square.className = `w-10 h-10 flex items-center justify-center relative ${squareColorClass}`;
+          square.setAttribute('data-square', squareName);
+          
+          const piece = chess.get(squareName);
+          if (piece) {
+            const pieceSpan = document.createElement('span');
+            pieceSpan.className = "piece";
+            pieceSpan.innerHTML = UNICODE_PIECES[piece.type][piece.color];
+            square.appendChild(pieceSpan);
+          }
+
+          // Highlights
+          if (selectedSquare === squareName) {
+            square.classList.add('square-selected');
+          }
+          if (possibleMoves.includes(squareName)) {
+            square.classList.add('square-highlight');
+          }
+
+          square.addEventListener('click', () => handleSquareClick(squareName));
+          boardEl.appendChild(square);
+        }
+      }
+      
+      updateStatus();
+    }
+
+    function handleSquareClick(squareName) {
+      if (chess.game_over()) return;
+
+      const piece = chess.get(squareName);
+      const activeColor = chess.turn();
+
+      // Case 1: Select/Change piece of active color
+      if (piece && piece.color === activeColor) {
+        selectedSquare = squareName;
+        // Fetch moves for this piece
+        const moves = chess.moves({ square: squareName, verbose: true });
+        possibleMoves = moves.map(m => m.to);
+        renderBoard();
+        return;
+      }
+
+      // Case 2: Move to destination if valid
+      if (selectedSquare && possibleMoves.includes(squareName)) {
+        // Handle pawn promotion simply to Queen
+        const moveDetails = {
+          from: selectedSquare,
+          to: squareName,
+          promotion: 'q' 
+        };
+
+        chess.move(moveDetails);
+        selectedSquare = null;
+        possibleMoves = [];
+        renderBoard();
+        return;
+      }
+
+      // Case 3: Click empty / other piece without valid move
+      selectedSquare = null;
+      possibleMoves = [];
+      renderBoard();
+    }
+
+    function updateStatus() {
+      if (chess.in_checkmate()) {
+        const winner = chess.turn() === 'w' ? 'Black' : 'White';
+        statusText.textContent = `Checkmate! ${winner} Wins!`;
+        statusText.className = "text-center text-sm font-bold text-emerald-400 mb-4 h-6 animate-bounce";
+      } else if (chess.in_draw() || chess.in_stalemate() || chess.in_threefold_repetition()) {
+        statusText.textContent = "Draw game!";
+        statusText.className = "text-center text-sm font-semibold text-slate-400 mb-4 h-6";
+      } else {
+        const turnStr = chess.turn() === 'w' ? "White's Turn" : "Black's Turn";
+        const checkPrefix = chess.in_check() ? "Check! " : "";
+        statusText.textContent = checkPrefix + turnStr;
+        statusText.className = chess.in_check() 
+          ? "text-center text-sm font-bold text-rose-500 mb-4 h-6 animate-pulse" 
+          : "text-center text-sm font-semibold text-violet-400 mb-4 h-6";
+      }
+    }
+
+    resetBtn.addEventListener('click', () => {
+      chess.reset();
+      selectedSquare = null;
+      possibleMoves = [];
+      renderBoard();
+    });
+
+    // Initial render
+    renderBoard();
+  </script>
+</body>
+</html>
